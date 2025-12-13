@@ -1,0 +1,65 @@
+`timescale 10ns/1ns
+
+module tb_bottle_fsm;
+
+    reg clk;
+    reg reset;
+
+    reg i_bottle_detect;
+    reg i_critical;
+    reg i_fill_complete;
+    reg i_positioned;
+    reg i_removed;
+
+    wire o_motor_servo;
+    wire o_motor_stepper;
+    wire o_pump_motor;
+    wire o_valve_solenoid;
+    wire [1:0] state_out;
+
+    bottle_fsm dut (
+        .clk(clk),
+        .reset(reset),
+        .i_bottle_detect(i_bottle_detect),
+        .i_critical(i_critical),
+        .i_fill_complete(i_fill_complete),
+        .i_positioned(i_positioned),
+        .i_removed(i_removed),
+        .o_motor_servo(o_motor_servo),
+        .o_motor_stepper(o_motor_stepper),
+        .o_pump_motor(o_pump_motor),
+        .o_valve_solenoid(o_valve_solenoid),
+        .state_out(state_out)
+    );
+
+    // CLOCK 10 ns (SAMA PERSIS)
+    always #0.5 clk = ~clk;
+
+    initial begin
+        $dumpfile("wave.vcd");
+        $dumpvars(0, tb_bottle_fsm);
+
+        clk = 0;
+        reset = 1;
+
+        i_bottle_detect = 0;
+        i_critical = 0;
+        i_fill_complete = 0;
+        i_positioned = 0;
+        i_removed = 0;
+
+        #2 reset = 0;
+
+        #2 i_bottle_detect = 1;
+        #2 i_bottle_detect = 0;
+
+        #4 i_positioned = 1;
+        #2 i_positioned = 0;
+
+        #6 i_fill_complete = 1;
+        #2 i_fill_complete = 0;
+
+        #10 $finish;
+    end
+
+endmodule

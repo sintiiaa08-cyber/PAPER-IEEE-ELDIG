@@ -1,0 +1,402 @@
+\documentclass[conference]{IEEEtran}
+
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{orcidlink}
+
+
+\begin{document}
+
+
+\title{Digital Control System Design for Smart Aquaculture Using Multi-Sensor Integration and Finite State Machine}
+
+\author{
+    \IEEEauthorblockN{
+        Annisaa Zulfa Ahsanah \orcidlink{0009-0007-5110-057X}, 
+        Ir. Dwi Oktavianto Wahyu Nugroho, S.T., M.T. \orcidlink{0000-0002-6781-0732}, 
+        Fitri Adi Iskandarianto, S.T., M.T. \orcidlink{0009-0001-9106-2201}
+    }
+    \IEEEauthorblockA{
+        Department of Instrumentation Engineering \\
+        Institut Teknologi Sepuluh Nopember (ITS), Surabaya, Indonesia \\
+        Emails: 2042241040@student.its.ac.id, Oktavianto\_2wn@its.ac.id, fiskandarianto@ep.its.ac.id
+    }
+}
+
+
+\maketitle
+\begin{abstract}
+Water quality management plays a critical role in modern aquaculture, where parameters such as pH, dissolved oxygen (DO), water level, turbidity, electrical conductivity (EC), and total dissolved solids (TDS) must remain within optimal ranges. Rapid fluctuations in these parameters can significantly affect fish health and potentially cause mass mortality if not detected promptly. This work presents the design of a multi-sensor digital control system for smart aquaculture using a Finite State Machine (FSM). Sensor readings are mapped into three global system states: Normal, Warning, and Critical. Each state triggers structured responses through six actuators: water pump, aerator (PWM-based), solenoid valve, heater pad, automatic feeder, and UV sterilizer. The FSM is implemented using D Flip-Flops for hardware-level determinism, and its behavior is validated through both HDL (Verilog) and microcontroller-based C\# implementations. The system achieves efficient real-time responses, reduced computational load, and high reliability, making it suitable for embedded applications within smart aquaculture environments.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Aquaculture, Finite State Machine, Water Quality Monitoring, Digital Control System, Multi-Sensor Integration
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+Aquaculture has become an essential component of sustainable food production, offering high-efficiency protein sources for global consumption. Despite its potential, the success of aquaculture operations heavily depends on maintaining stable water quality conditions. Key environmental parameters---including pH, dissolved oxygen (DO), turbidity, water level, EC, and TDS---directly influence metabolic activity, growth rate, and overall fish health. Even slight deviations in these parameters can lead to stress, reduced immunity, and in severe cases, mass mortality.
+
+Traditional monitoring methods commonly rely on manual measurements conducted several times per day. Such approaches are limited in responsiveness, prone to human error, and unable to provide immediate corrective action. Water conditions may deteriorate within minutes due to weather shifts, biological waste accumulation, or reduced aeration. Hence, a real-time monitoring and automated control system is crucial for maintaining optimal environmental stability.
+
+Finite State Machine (FSM) architecture provides a structured framework for developing deterministic decision-making logic in embedded systems. By categorizing sensor data into discrete state representations—Normal, Warning, and Critical—the FSM ensures that system behavior remains predictable and responsive. Actuators such as pumps, aerators, heaters, solenoid valves, feeders, and UV sterilizers can then be systematically controlled based on the current state.
+
+This paper presents a comprehensive design methodology for implementing a multi-sensor smart aquaculture control system using FSM principles. The design includes state modeling, input abstraction, truth table construction, D Flip-Flop-based state registers, transition matrix formulation, HDL implementation, and embedded C\# integration. The proposed system offers lightweight computation, ease of verification, and high portability across embedded platforms.
+
+\section{Related Work}
+
+Numerous studies have investigated IoT-based monitoring systems for aquaculture, primarily focusing on data acquisition and cloud-based visualization. These systems utilize sensors for pH, DO, turbidity, and temperature, transmitting data through GSM, Wi-Fi, or LoRaWAN networks. While these platforms support remote oversight, most do not provide autonomous control mechanisms, making them dependent on human intervention.
+
+Advanced control methods such as fuzzy logic and machine learning have also been explored for water-quality prediction and anomaly detection. Although these approaches offer flexible, data-driven decision capabilities, they require substantial computational resources, large training datasets, and fine-tuning, which may not be suitable for microcontroller-based systems with limited processing power.
+
+FSM-based systems, by contrast, offer deterministic behavior, low computational cost, and robust hardware implementation. Despite their advantages, FSM applications in aquaculture remain relatively limited and often focus on single-parameter monitoring. This work expands the application of FSM by integrating six sensors and six actuators within a unified control structure, providing faster and more reliable responses than inference-based approaches.
+
+\section{System Design and Methodology}
+
+\subsection{Sensor Architecture}
+
+The proposed system integrates six environmental sensors commonly used in aquaculture:
+
+\begin{itemize}
+    \item pH sensor
+    \item Dissolved Oxygen (DO) sensor
+    \item Ultrasonic water-level sensor
+    \item Turbidity sensor
+    \item Electrical Conductivity (EC) sensor
+    \item Total Dissolved Solids (TDS) sensor
+\end{itemize}
+
+Each sensor reading is converted into one of three classification flags: Normal, Warning, or Critical. These flags are then encoded into binary signals for the FSM.
+
+\subsection{Actuator Control}
+
+Six actuators are used to regulate water conditions:
+
+\begin{itemize}
+    \item Water pump
+    \item Aerator motor (PWM Medium/High)
+    \item Solenoid valve
+    \item Heater pad
+    \item Automatic feeder
+    \item UV sterilizer
+\end{itemize}
+
+Actuator behavior is entirely dependent on the FSM state.
+
+\subsection{Sensor Threshold Classification}
+
+To convert continuous sensor values into discrete logic inputs for the FSM, 
+each parameter is assigned threshold boundaries for Normal, Warning, and 
+Critical conditions. Table~\ref{tab:thresholds} summarizes the thresholds for 
+all water quality sensors used in the system.
+
+\begin{table}[ht]
+\centering
+\caption{Sensor Threshold Classification for Water Quality Parameters}
+\label{tab:thresholds}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Parameter} & \textbf{Normal} & \textbf{Warning} & \textbf{Critical} \\
+\hline
+pH & 6.5--7.5 & 5.5--6.4 / 7.6--8.5 & $<$5.5 / $>$8.5 \\
+DO (mg/L) & $>$5 & 3--5 & $<$3 \\
+Turbidity (NTU) & $<$5 & 5--20 & $>$20 \\
+EC ($\mu$S/cm) & 800--1200 & 1200--1500 & $>$1500 \\
+TDS (ppm) & 300--500 & 501--800 & $>$800 \\
+Water Level & Normal & Low & Very Low \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Digital Abstraction of Sensor Signals}
+
+Continuous sensor readings are converted into binary logic flags using the 
+threshold rules defined earlier. For example, the pH logic flag is computed as:
+
+\begin{equation}
+pH_{flag} =
+\begin{cases}
+0, & 6.5 \leq pH \leq 7.5 \\
+1, & \text{otherwise}.
+\end{cases}
+\end{equation}
+
+Similar logic is applied to DO, turbidity, EC, TDS, and water level.
+
+
+\subsection{Global Input Variables}
+
+To streamline state decisions, sensor outputs are condensed into two logic variables:
+
+\begin{equation}
+I1 = \sum SC\_sensors
+\end{equation}
+\begin{equation}
+I0 = \left(\sum SW\_sensors \right) \cdot \lnot I1
+\end{equation}
+
+This ensures that Critical states override all Warning conditions.
+
+\subsection{FSM Architecture}
+
+The FSM comprises three primary states:
+
+\begin{itemize}
+    \item SN (00): Normal
+    \item SW (01): Warning
+    \item SC (10): Critical
+\end{itemize}
+
+Transitions are determined solely by the global variables $I1$ and $I0$.
+
+\subsection{Flip-Flop Implementation}
+
+To support hardware-level determinism, the FSM employs two D Flip-Flops to store state bits $Q1$ and $Q0$:
+
+\begin{equation}
+D1 = I1
+\end{equation}
+\begin{equation}
+D0 = I0 \cdot \lnot I1
+\end{equation}
+
+This simplifies hardware implementation and reduces logical complexity.
+
+\section{FSM Transition Matrix}
+
+A complete transition matrix is constructed to map current states, inputs, next states, and actuator outputs. The matrix ensures consistent system behavior for all input combinations and facilitates verification through simulation and hardware testing.
+
+\subsection{State-Actuator Mapping}
+
+Each FSM state is associated with a deterministic actuator response to ensure 
+real-time reaction to changing water conditions. Table~\ref{tab:mapping} shows 
+the mapping between sensor conditions, FSM state, and actuator behavior.
+
+\begin{table}[ht]
+\centering
+\caption{FSM Mapping Between Sensor Conditions and Actuator Outputs}
+\label{tab:mapping}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Condition} & \textbf{Sensor Flags} & \textbf{FSM State} & \textbf{Actuator Outputs} \\
+\hline
+
+Normal & All = 0 & SN (00) & Feeder ON only \\
+\hline
+
+Warning & One sensor abnormal & SW (01) & Aerator ON (PWM Medium) \\
+\hline
+
+Critical & $>$1 abnormal or severe deviation & SC (10) &
+Pump ON, Heater ON, Valve ON, UV ON \\
+\hline
+\end{tabular}
+}%
+\end{table}
+
+
+\subsection{FSM Next-State Logic}
+
+The next-state behavior of the FSM is summarized in 
+Table~\ref{tab:nextstate}.
+
+\begin{table}[ht]
+\centering
+\caption{Next-State Transition Table for the FSM}
+\label{tab:nextstate}
+\begin{tabular}{|c|p{2.2cm}|c|}
+\hline
+\textbf{Current State} & \textbf{Input Condition} & \textbf{Next State} \\
+\hline
+SN (00) & Warning detected & SW (01) \\ \hline
+SN (00) & Critical detected & SC (10) \\ \hline
+SW (01) & Critical detected & SC (10) \\ \hline
+SW (01) & All normal & SN (00) \\ \hline
+SC (10) & Critical persists & SC (10) \\ \hline
+SC (10) & Warning only & SW (01) \\ \hline
+SC (10) & All normal & SN (00) \\ \hline
+\end{tabular}
+\end{table}
+
+
+
+\section{Implementation}
+
+\subsection{HDL Implementation}
+
+The FSM was implemented in Verilog HDL. The design includes:
+
+\begin{itemize}
+    \item state register block using D Flip-Flops
+    \item next-state combinational logic
+    \item actuator output logic
+\end{itemize}
+
+Resource usage is minimized for FPGA deployment.
+
+\subsection{C\# Microcontroller Implementation}
+
+A C\#-based FSM implementation was developed for .NET nanoFramework microcontrollers. The \texttt{Update()} method computes the next state and actuates hardware components accordingly. The modular structure supports integration with IoT platforms.
+
+\section{Results and Discussion}
+
+Simulation results indicate that the FSM responds immediately to critical 
+conditions by transitioning to the SC state, activating high-priority 
+actuators such as pumps, heaters, and UV sterilizers. Warning conditions 
+maintain system stability through medium-PWM aeration while keeping feeding 
+systems active. The deterministic behavior ensures low-latency responses 
+without complex computation. Compared to fuzzy logic or machine learning 
+approaches, the FSM requires significantly fewer computational resources. The 
+system is lightweight, predictable, and easily validated under all operating 
+scenarios.
+
+\subsection{HDL Simulation Results}
+
+Fig.~\ref{fig:gtkwave} shows the RTL-level waveform obtained from the Verilog 
+simulation using GTKWave. The signals \texttt{I0} and \texttt{I1} correctly 
+trigger the FSM transitions according to the designed logic. When 
+\texttt{I1} becomes high, the FSM moves from state 00 (Normal) to 10 
+(Critical) on the next rising clock edge, confirming that the hardware 
+implementation prioritizes critical events. When only \texttt{I0} is asserted 
+while \texttt{I1} remains low, the FSM transitions to state 01 (Warning). 
+Actuator outputs such as \texttt{pump}, \texttt{heater}, \texttt{valve}, and 
+\texttt{uv} also respond immediately according to the SC state, validating the 
+correct operation of the D Flip-Flop-based state register and output logic.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.48\textwidth]
+    {Screenshot 2025-12-04 095231.png}
+        \caption{HDL waveform from GTKWave showing state transitions and actuator responses based on I0 and I1 inputs}
+        \label{fig:placeholder}
+\end{figure}
+
+
+\subsection{Software Simulation Results (C\#)}
+
+The high-level software simulation shown in Fig.~\ref{fig:csharp} demonstrates 
+the functional behavior of the FSM when executed on a microcontroller-oriented 
+C\# implementation. The console output displays the evaluated sensor states, 
+derived flags (Warning and Critical), and final actuator outputs. The observed 
+state transitions precisely match the HDL results, confirming functional 
+equivalence across hardware and software implementations. Under Normal 
+conditions, all actuators except the feeder remain inactive. During Warning 
+conditions, the aerator switches to medium-PWM mode. When the system enters 
+the Critical state, the pump, heater, valve, and UV sterilizer are activated, 
+mirroring the expected safety behavior defined in the FSM rules.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.48\textwidth]
+    {Screenshot 2025-12-05 221746.png}
+        \caption{C\# software simulation output showing FSM state evaluation and actuator control results}
+        \label{fig:placeholder}
+        \includegraphics[width=0.5\linewidth]
+    \label{fig:csharp}
+\end{figure}
+
+
+
+
+
+
+\section{Conclusion}
+
+This work presents a multi-sensor digital control system for smart aquaculture using a Finite State Machine. By integrating six sensors and six actuators within a unified FSM structure, the system provides deterministic, efficient, and real-time responses to environmental changes. The implementation using D Flip-Flops ensures hardware simplicity and reliability, while the Verilog and C\# implementations demonstrate portability across embedded environments. Future improvements may include IoT connectivity, data analytics, and adaptive thresholding mechanisms.
+
+\section*{Acknowledgment}
+
+The author acknowledges the guidance of supervising lecturers and laboratory staff who supported the development of this work.
+
+\begin{thebibliography}{12}
+
+\bibitem{abinaya2019}
+T. Abinaya, J. Ishwarya and M. Maheswari, 
+``A Novel Methodology for Monitoring and Controlling of Water Quality in Aquaculture using Internet of Things (IoT),'' 
+in \textit{Proc. International Conference on Computer Communication and Informatics (ICCCI)}, 
+Coimbatore, India, 2019, pp. 1--4, doi: 10.1109/ICCCI.2019.8821988.
+
+\bibitem{wei2017}
+W. Wei, D. Changhui, L. Xiangjun and G. Jun, 
+``Soft-sensor software design of dissolved oxygen in aquaculture,'' 
+in \textit{Proc. Chinese Automation Congress (CAC)}, 
+Jinan, China, 2017, pp. 5413--5417, doi: 10.1109/CAC.2017.8243743.
+
+\bibitem{patro2025}
+K. K. Patro, M. Deepak, R. Dilleswararao, M. J. Rao, M. Kshyama and E. Sravani, 
+``Smart IoT-Based Real-Time Monitoring System for Overhead Tank Water Levels and Quality,'' 
+in \textit{Proc. IEEE 4th World Conference on Applied Intelligence and Computing (AIC)}, 
+GB Nagar, Gwalior, India, 2025, pp. 975--979, doi: 10.1109/AIC66080.2025.11212028.
+
+\bibitem{gupta2024}
+R. D. Gupta, K. Roy, R. U. Bhuiyan, M. T. Abdhullah and N. Ahamed, 
+``Smart Aquaculture: A Cost Effective IoT Integrated Model for Monitoring Environmental and Pond Parameters,'' 
+in \textit{Proc. International Conference on Innovations in Science, Engineering and Technology (ICISET)}, 
+Chittagong, Bangladesh, 2024, pp. 1--6, doi: 10.1109/ICISET62123.2024.10939347.
+
+\bibitem{kiranmai2023}
+K. Uppuluri, 
+``Smart Sensors for Monitoring pH, Dissolved Oxygen, Electrical Conductivity, and Temperature in Water,'' 
+in \textit{Sensing Technologies for Real Time Monitoring of Water Quality}. IEEE, 2023, pp. 1--23, 
+doi: 10.1002/9781119775843.ch1.
+
+\bibitem{maruf2024}
+K. Ma'ruf, R. J. Setiawan, A. A. Kafah Alam, T. Ismail, C. Insaniah Muhammad and J. Ali, 
+``Internet of Things for Real-Time Monitoring of Water Quality with Integrated Temperature, pH, and TDS Sensors,'' 
+in \textit{Proc. International Conference on Electrical Engineering and Computer Science (ICECOS)}, 
+Palembang, Indonesia, 2024, pp. 314--319, doi: 10.1109/ICECOS63900.2024.10791209.
+
+\bibitem{chowdhury2022}
+A. A. S. Chowdhury, Y. Arafat and M. S. Alam, 
+``IoT-GSM Based Controlling and Monitoring System to Prevent Water Wastage, Water Leakage, and Pollution in the Water Supply,'' 
+in \textit{Proc. International Conference on Innovations in Science, Engineering and Technology (ICISET)}, 
+Chittagong, Bangladesh, 2022, pp. 567--572, doi: 10.1109/ICISET54810.2022.9775876.
+
+\bibitem{hui2021}
+L. Hui-Rong, G. Xiao-Ying and W. Yue-Kun, 
+``Application of new internal model control in aeration system,'' 
+in \textit{Proc. 33rd Chinese Control and Decision Conference (CCDC)}, 
+Kunming, China, 2021, pp. 3758--3762, doi: 10.1109/CCDC52312.2021.9602567.
+
+\bibitem{akaiss2025}
+A. K. V., S. J., G. R. and S. B. A., 
+``Design and Implementation of Smart Water Management System using IoT Technology,'' 
+in \textit{Proc. 3rd International Conference on Augmented Intelligence and Sustainable Systems (ICAISS)}, 
+Trichy, India, 2025, pp. 874--881, doi: 10.1109/ICAISS61471.2025.11042079.
+
+\bibitem{podder2023}
+S. Podder, M. F. Sultan Anoy, S. T. Salim Rafid and A. J. Ajwad, 
+``Smart Biofloc System: Leveraging IoT for Enhanced Aquaculture Sustainability,'' 
+in \textit{Proc. 5th International Conference on Electrical, Control and Instrumentation Engineering (ICECIE)}, 
+Kuala Lumpur, Malaysia, 2023, pp. 1--7, doi: 10.1109/ICECIE58751.2024.10457457.
+
+\bibitem{baldovino2024}
+R. G. Baldovino, F. N. Magallanes, E. J. C. Santos, K. D. Conti and P. D. L. Sia, 
+``Smart IoT-based Feeder System for Koi Fish (Cyprinus rubrofuscus) Aquaculture,'' 
+in \textit{Proc. 9th International Conference on Mechatronics Engineering (ICOM)}, 
+Kuala Lumpur, Malaysia, 2024, pp. 240--244, doi: 10.1109/ICOM61675.2024.10652414.
+
+\bibitem{szolga2021}
+L. A. Szolga and T. R. Cilean, 
+``Water Sterilization Using Power UV LEDs,'' 
+in \textit{Proc. 8th International Conference on Electrical and Electronics Engineering (ICEEE)}, 
+Antalya, Turkey, 2021, pp. 49--53, doi: 10.1109/ICEEE52452.2021.9415965
+
+\end{thebibliography}
+
+\section*{Authors' Biography}
+
+\textbf{Annisaa Zulfa Ahsanah} Student in Instrumentation Engineering from Institut Teknologi Sepuluh Nopember (ITS), Surabaya, Indonesia. Her GitHub repository for this work: \href{https://github.com/Zulfaa01/Elektronika-Digital}{https://github.com/Zulfaa01/ElektronikaDigital}.
+
+
+
+
+
+\end{document}

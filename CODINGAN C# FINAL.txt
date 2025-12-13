@@ -1,0 +1,153 @@
+using System;
+using System.Threading;
+
+// ===================================================
+// KELAS A: Logika FSM (Bottle Filling) - SUDAH DIPERBAIKI
+// ===================================================
+public class BottleFillingFSM
+{
+    public enum State
+    {
+        Idle, Positioning, Filling       
+    }
+
+    public State CurrentState { get; private set; } = State.Idle;
+    
+    public struct SensorInput {
+        public bool BottleDetect; public bool Positioned; 
+        public bool FillComplete; public bool Removed; public bool Critical; 
+    }
+
+    public struct ActuatorOutput {
+        public bool ValveSolenoid; public bool PumpMotor;
+        public bool MotorStepper; public bool MotorServo;
+    }
+
+    public ActuatorOutput CurrentOutput { get; private set; }
+
+    public BottleFillingFSM()
+    {
+        CurrentOutput = new ActuatorOutput();
+    }
+
+    private void UpdateOutput()
+    {
+        ActuatorOutput tempOutput = CurrentOutput;
+
+        tempOutput.ValveSolenoid = false;
+        tempOutput.PumpMotor = false;
+        tempOutput.MotorStepper = false;
+        tempOutput.MotorServo = false;
+
+        switch (CurrentState)
+        {
+            case State.Positioning: 
+                tempOutput.MotorStepper = true;
+                tempOutput.MotorServo = true;
+                break;
+            case State.Filling:     
+                tempOutput.ValveSolenoid = true;
+                tempOutput.PumpMotor = true;
+                break;
+            default:
+                break;
+        }
+        
+        CurrentOutput = tempOutput;
+    }
+
+    public void ProcessInput(SensorInput input)
+    {
+        State nextState = CurrentState;
+
+        switch (CurrentState)
+        {
+            case State.Idle:
+                if (input.BottleDetect) nextState = State.Positioning; 
+                else if (input.Critical) nextState = State.Filling; 
+                break;
+            case State.Positioning:
+                if (input.Positioned) nextState = State.Filling;     
+                else if (input.Removed) nextState = State.Idle;        
+                break;
+            case State.Filling:
+                if (input.FillComplete) nextState = State.Idle;        
+                else if (input.Critical || input.Removed) nextState = State.Idle;        
+                break;
+        }
+
+        if (nextState != CurrentState)
+        {
+            Console.WriteLine($"\n--- TRANSITION: {CurrentState,-12} -> {nextState} ---");
+            CurrentState = nextState;
+        }
+
+        UpdateOutput();
+    }
+}
+
+// ===================================================
+// KELAS B: PROGRAM UTAMA (TESTBENCH C#) - OUTPUT RAPI
+// ===================================================
+public class Program
+{
+    public static void Main()
+    {
+        var fsm = new BottleFillingFSM();
+        var input = new BottleFillingFSM.SensorInput();
+        
+        Console.WriteLine("=================================================");
+        Console.WriteLine("=== SIMULASI FSM PENGISIAN BOTOL OTOMATIS (C#)===");
+        Console.WriteLine("=================================================\n");
+        
+        // Helper untuk mencetak status detail dengan alignment yang ketat
+        Action<string> printDetailedStatus = (scenarioName) =>
+        {
+            Console.WriteLine($"\n-------------------------------------------------");
+            Console.WriteLine($"SCENARIO: {scenarioName}");
+            Console.WriteLine($"-------------------------------------------------");
+            Console.WriteLine($"STATE SAAT INI             : {fsm.CurrentState,-15}");
+            Console.WriteLine($"STATUS SENSOR INPUT:");
+            Console.WriteLine($"- Bottle Detect            : {(input.BottleDetect ? "ON" : "OFF"),-5}");
+            Console.WriteLine($"- Positioned (Feedback)    : {(input.Positioned ? "ON" : "OFF"),-5}");
+            Console.WriteLine($"- Fill Complete            : {(input.FillComplete ? "ON" : "OFF"),-5}");
+            Console.WriteLine($"STATUS AKTUATOR OUTPUT:");
+            Console.WriteLine($"- Motor Stepper (Positioning): {(fsm.CurrentOutput.MotorStepper ? "ON" : "OFF"),-5}");
+            Console.WriteLine($"- Motor Servo (Positioning)  : {(fsm.CurrentOutput.MotorServo ? "ON" : "OFF"),-5}");
+            Console.WriteLine($"- Valve Solenoid (Filling)   : {(fsm.CurrentOutput.ValveSolenoid ? "ON" : "OFF"),-5}");
+            Console.WriteLine($"- Pump Motor (Filling)       : {(fsm.CurrentOutput.PumpMotor ? "ON" : "OFF"),-5}");
+            Console.WriteLine("-------------------------------------------------");
+        };
+        
+        // 1. SKENARIO 1: START/IDLE
+        input.BottleDetect = false;
+        input.Positioned = false;
+        input.FillComplete = false;
+        fsm.ProcessInput(input);
+        printDetailedStatus("1. KONDISI START/IDLE");
+
+        // 2. SKENARIO 2: IDLE -> POSITIONING
+        Console.WriteLine("\n*** MEMICU: Bottle Detected (INPUT BottleDetect = ON) ***");
+        input.BottleDetect = true;
+        fsm.ProcessInput(input);
+        printDetailedStatus("2. POSITIONING AKTIF");
+        input.BottleDetect = false; // Reset input setelah memicu transisi
+
+        // 3. SKENARIO 3: POSITIONING -> FILLING
+        Console.WriteLine("\n*** MEMICU: Bottle Positioned (INPUT Positioned = ON) ***");
+        input.Positioned = true;
+        fsm.ProcessInput(input);
+        printDetailedStatus("3. FILLING AKTIF");
+        input.Positioned = false; // Reset input
+
+        // 4. SKENARIO 4: FILLING -> IDLE (Sukses)
+        Console.WriteLine("\n*** MEMICU: Fill Complete (INPUT FillComplete = ON) ***");
+        input.FillComplete = true;
+        fsm.ProcessInput(input);
+        printDetailedStatus("4. SIKLUS SELESAI, KEMBALI IDLE");
+        
+        Console.WriteLine("\n=================================================");
+        Console.WriteLine("=== SIMULASI SELESAI ======");
+        Console.WriteLine("=================================================");
+    }
+}
