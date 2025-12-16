@@ -10,7 +10,6 @@
 Department of Instrumentation Engineering
 Institut Teknologi Sepuluh Nopember (ITS)
 
-📅 **Year:** 2025
 
 ---
 
